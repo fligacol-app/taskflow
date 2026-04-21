@@ -49,6 +49,13 @@
       </div>
     </div>
     <div class="content">
+      <div class="card" id="setupCard">
+        <div class="grid">
+          <strong>Estrutura inicial</strong>
+          <div class="muted">Clique uma vez para preparar as coleções base no Firestore. O botão fica desativado depois de concluído.</div>
+          <button id="initBtn">Inicializar estrutura</button>
+        </div>
+      </div>
       <div class="card">
         <div class="menu">
           <button id="newTaskBtn">+ Nova tarefa</button>
@@ -95,22 +102,24 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const firebaseConfig = { apiKey: "AIzaSyBQB1bMTQBZFp65xTFaeB28x23rtTdkLyk", authDomain: "taskflow-equipa.firebaseapp.com", projectId: "taskflow-equipa", storageBucket: "taskflow-equipa.firebasestorage.app", messagingSenderId: "814294944185", appId: "1:814294944185:web:e1f2b7d45311bf08c24e68" };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 const adminEmail = 'fligadebora@hotmail.com';
 const adminPassword = 'fpsts2012';
 const $ = id => document.getElementById(id);
 const loginView = $('loginView'), appView = $('appView'), taskList = $('taskList'), taskCount = $('taskCount');
-const operatorFormCard = $('operatorFormCard'), taskFormCard = $('taskFormCard'), filtersCard = $('filtersCard');
-let currentUser = null, isAdmin = false, currentScope = 'mine', currentEditId = null;
+const operatorFormCard = $('operatorFormCard'), taskFormCard = $('taskFormCard'), filtersCard = $('filtersCard'), setupCard = $('setupCard');
+let currentUser = null, isAdmin = false, currentScope = 'mine', currentEditId = null, initialized = false;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function showApp(u){ currentUser=u; isAdmin=(u.email||'').toLowerCase()===adminEmail; loginView.classList.add('hidden'); appView.classList.remove('hidden'); $('operatorName').textContent=u.displayName||'Operador'; $('operatorEmail').textContent=u.email||''; $('taskflowTitle').textContent='TaskFlow ' + (u.displayName || (u.email||'').split('@')[0] || 'Operador'); $('newOperatorBtn').style.display = isAdmin ? 'block' : 'none'; filtersCard.classList.toggle('hidden', !isAdmin); }
+function showApp(u){ currentUser=u; isAdmin=(u.email||'').toLowerCase()===adminEmail; loginView.classList.add('hidden'); appView.classList.remove('hidden'); $('operatorName').textContent=u.displayName||'Operador'; $('operatorEmail').textContent=u.email||''; $('taskflowTitle').textContent='TaskFlow ' + (u.displayName || (u.email||'').split('@')[0] || 'Operador'); $('newOperatorBtn').style.display = isAdmin ? 'block' : 'none'; filtersCard.classList.toggle('hidden', !isAdmin); setupCard.classList.toggle('hidden', initialized); }
 function showLogin(){ appView.classList.add('hidden'); loginView.classList.remove('hidden'); }
+async function ensureBaseCollections(){ const batch = writeBatch(db); batch.set(doc(db,'operators','_init'), {init:true,createdAt:serverTimestamp()}, {merge:true}); batch.set(doc(db,'tasks','_init'), {init:true,createdAt:serverTimestamp()}, {merge:true}); await batch.commit(); await deleteDoc(doc(db,'operators','_init')); await deleteDoc(doc(db,'tasks','_init')); initialized = true; setupCard.classList.add('hidden'); }
 async function loadTasks(scope='mine'){ currentScope=scope; const status=$('statusFilter').value; const sort=$('sortFilter').value; let qref = scope==='all' && isAdmin ? query(collection(db,'tasks'), orderBy('createdAt', sort)) : query(collection(db,'tasks'), where('uid','==',currentUser.uid), orderBy('createdAt', sort)); const snap = await getDocs(qref); let items=snap.docs.map(d=>({id:d.id,...d.data()})); if(status==='open') items=items.filter(t=>!t.done); if(status==='done') items=items.filter(t=>t.done); taskCount.textContent = items.length + ' tarefas'; taskList.innerHTML = items.length ? items.map(t=>`<div class="task"><div><strong>${esc(t.title)}</strong><div class="muted">${esc(t.desc)}</div><div style="margin-top:8px"><span class="badge">${esc(t.priority||'')}</span> <span class="pill" style="margin-left:6px">${t.done ? 'Concluída' : 'Em aberto'}</span></div></div><div class="task-actions"><button class="secondary" data-edit="${t.id}">Editar</button><button class="secondary" data-toggle="${t.id}">${t.done ? 'Reabrir' : 'Concluir'}</button>${isAdmin ? `<button class="danger" data-del="${t.id}">Apagar</button>` : ''}</div></div>`).join('') : '<div class="muted">Sem tarefas.</div>'; document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleTask(b.dataset.toggle)); document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit)); document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>removeTask(b.dataset.del)); }
-async function toggleTask(id){ const ref=doc(db,'tasks',id); const snap=await getDoc(ref); if(!snap.exists()) return; await updateDoc(ref,{done:!snap.data().done,updatedAt:serverTimestamp()}); loadTasks(currentScope); }
-async function editTask(id){ const snap=await getDoc(doc(db,'tasks',id)); if(!snap.exists()) return; const t=snap.data(); currentEditId=id; taskFormCard.classList.remove('hidden'); $('taskTitle').value=t.title||''; $('taskDesc').value=t.desc||''; $('taskPriority').value=t.priority||'Média'; $('createTaskBtn').textContent='Atualizar tarefa'; }
-async function removeTask(id){ if(!confirm('Apagar esta tarefa?')) return; await deleteDoc(doc(db,'tasks',id)); loadTasks(currentScope); }
+async function toggleTask(id){ const ref=doc(db,'tasks',id); const snap=await getDoc(ref); if(!snap.exists() || snap.data().systemBase) return; await updateDoc(ref,{done:!snap.data().done,updatedAt:serverTimestamp()}); loadTasks(currentScope); }
+async function editTask(id){ const snap=await getDoc(doc(db,'tasks',id)); if(!snap.exists() || snap.data().systemBase) return; const t=snap.data(); currentEditId=id; taskFormCard.classList.remove('hidden'); $('taskTitle').value=t.title||''; $('taskDesc').value=t.desc||''; $('taskPriority').value=t.priority||'Média'; $('createTaskBtn').textContent='Atualizar tarefa'; }
+async function removeTask(id){ const snap=await getDoc(doc(db,'tasks',id)); if(!snap.exists() || snap.data().systemBase) return alert('Documento-base protegido.'); if(!confirm('Apagar esta tarefa?')) return; await deleteDoc(doc(db,'tasks',id)); loadTasks(currentScope); }
+$('initBtn').onclick = async()=>{ try{ await ensureBaseCollections(); $('initBtn').textContent='Estrutura inicializada'; $('initBtn').disabled=true; } catch(e){ alert(e.message); } };
 $('loginBtn').onclick = async()=>{ try{ const em=$('email').value.trim(), pw=$('password').value.trim(); if(em.toLowerCase()===adminEmail && pw===adminPassword){ try { await signInWithEmailAndPassword(auth, em, pw); } catch { const cred = await createUserWithEmailAndPassword(auth, em, pw); await updateProfile(cred.user, {displayName:'Admin'}); } return; } await signInWithEmailAndPassword(auth, em, pw); }catch(e){ alert(e.message); } };
 $('logoutBtn').onclick = ()=>signOut(auth);
 $('newTaskBtn').onclick = ()=>{ taskFormCard.classList.toggle('hidden'); operatorFormCard.classList.add('hidden'); };
