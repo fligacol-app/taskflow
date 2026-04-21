@@ -1,35 +1,441 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f0faf7" />
+  <title>TaskFlow Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f0faf7;--card:#fff;--line:#d8ece5;--txt:#112922;--muted:#6c8c80;
+      --accent:#0ea47f;--accent2:#2f80ed;--danger:#de4f5f;--ok:#22a060;
+      --low:#ebefff;--lowt:#3558d4;--med:#fff7e0;--medt:#9a6900;
+      --high:#ffe6e6;--hight:#b02e2e;--urg:#fee4fc;--urgt:#a01f90;
+      --shadow:0 8px 32px rgba(14,164,127,.1);--r:22px;--rb:28px
     }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt)}
+    .wrap{min-height:100vh;display:flex;justify-content:center;padding:16px}
+    .app{width:100%;max-width:1200px;background:rgba(255,255,255,.82);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--rb);overflow:hidden;backdrop-filter:blur(14px)}
+    /* HERO */
+    .hero{padding:20px 24px;background:linear-gradient(135deg,rgba(14,164,127,.14),rgba(47,128,237,.08));border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+    .brand{display:flex;gap:14px;align-items:center}
+    .logo{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#0ea47f,#2f80ed);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(14,164,127,.3)}
+    .logo svg{width:28px;height:28px}
+    .title{margin:0;font-size:24px;font-weight:900;letter-spacing:-.5px}
+    .pill-name{display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(135deg,rgba(14,164,127,.12),rgba(47,128,237,.08));border:1px solid rgba(14,164,127,.2);font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px}
+    .herobtn{display:flex;gap:10px}
+    /* LAYOUT */
+    .layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 110px)}
+    .sidebar{padding:14px;border-right:1px solid var(--line);display:grid;gap:12px;background:#f8fcfa}
+    .main{padding:16px;display:grid;gap:14px;align-content:start}
+    /* CARDS */
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+    .grid{display:grid;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.four{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    /* INPUTS */
+    input,select,textarea,button{width:100%;border:1px solid var(--line);border-radius:16px;padding:13px 14px;font:inherit;color:var(--txt);background:#fff;outline:none;transition:border .2s}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    input::placeholder,textarea::placeholder{color:#9ab5ab}
+    button{border:none;background:linear-gradient(135deg,var(--accent),#12c49a);color:#fff;font-weight:800;cursor:pointer;transition:opacity .15s,transform .1s}
+    button:active{opacity:.88;transform:scale(.98)}
+    button.sec{background:#edf7f2;color:var(--txt);border:1px solid var(--line)}
+    button.danger{background:linear-gradient(135deg,#ef7070,var(--danger));color:#fff}
+    button.icon{width:auto;padding:10px 14px;border-radius:14px;font-size:14px}
+    .muted{color:var(--muted);font-size:13px} .hidden{display:none!important}
+    /* NAV */
+    .nav{display:grid;gap:6px}
+    .nav button{min-height:52px;text-align:left;padding:12px 14px;background:#fff;color:var(--txt);border:1px solid var(--line);font-weight:600;display:flex;align-items:center;gap:10px;font-size:14px}
+    .nav button.active{background:linear-gradient(135deg,rgba(14,164,127,.12),rgba(47,128,237,.06));border-color:rgba(14,164,127,.3);color:var(--accent)}
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .stat{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:4px}
+    .stat strong{font-size:28px;font-weight:900;line-height:1}
+    .stat .slabel{font-size:12px;color:var(--muted);font-weight:500}
+    .stat-icon{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;margin-bottom:6px;font-size:18px}
+    /* TASK */
+    .task{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;transition:box-shadow .2s}
+    .task:hover{box-shadow:0 4px 18px rgba(14,164,127,.1)}
+    .task.done-task{opacity:.7}
+    .task h4{margin:0 0 5px;font-size:15px;font-weight:700}
+    .tinfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}
+    /* BADGES */
+    .badge{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid transparent}
+    .p-low{background:var(--low);color:var(--lowt);border-color:#cfdcff}
+    .p-med{background:var(--med);color:var(--medt);border-color:#ffe2a6}
+    .p-high{background:var(--high);color:var(--hight);border-color:#ffcaca}
+    .p-urgent{background:var(--urg);color:var(--urgt);border-color:#ffc9f0}
+    .cat-badge{background:#e8f5ef;color:#1a6344;border-color:#c5e8d8;font-weight:600}
+    .status-badge{background:#f5f5f5;color:#666;border-color:#ddd}
+    .done-badge{background:#e6f9ee;color:#1e7a46;border-color:#b8eece}
+    /* CALENDAR */
+    .cal-head,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .cal-head div{text-align:center;color:var(--muted);font-size:11px;font-weight:700;padding:6px 0}
+    .cal-day{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;min-height:88px}
+    .cal-day.today-day{border-color:var(--accent);background:linear-gradient(180deg,rgba(14,164,127,.06),rgba(14,164,127,.02))}
+    .cal-day .dn{font-weight:800;font-size:14px}
+    .mini-task{display:block;font-size:10px;font-weight:600;padding:3px 6px;border-radius:8px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mini-low{background:var(--low);color:var(--lowt)}.mini-med{background:var(--med);color:var(--medt)}.mini-high{background:var(--high);color:var(--hight)}.mini-urgent{background:var(--urg);color:var(--urgt)}
+    /* SHOPPING CHECKLIST */
+    .shop-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:16px}
+    .shop-item input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer}
+    .shop-item .stext{flex:1;font-size:15px}
+    .shop-item .stext.crossed{text-decoration:line-through;color:var(--muted)}
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(15,30,25,.4);backdrop-filter:blur(6px);z-index:100;display:grid;place-items:center;padding:16px}
+    .modal{background:#fff;border-radius:var(--rb);box-shadow:0 30px 80px rgba(0,0,0,.2);width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:24px}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .modal-header h2{margin:0;font-size:20px}
+    /* SECTION TITLES */
+    .section-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+    .section-top h3{margin:0;font-size:18px;font-weight:800}
+    /* HISTORY */
+    .hist{border-left:3px solid var(--accent);padding-left:14px;margin-left:6px}
+    /* PRINT/PDF */
+    @media print{.sidebar,.hero .herobtn,.actions,button{display:none!important}.layout{grid-template-columns:1fr}}
+    /* RESPONSIVE */
+    @media (max-width:960px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--line)}.four,.stats{grid-template-columns:1fr 1fr}}
+    @media (max-width:580px){.cal-head,.cal-grid,.three,.two,.stats,.four{grid-template-columns:1fr}.title{font-size:20px}.stat strong{font-size:22px}}
+  </style>
+</head>
+<body>
+<div class="wrap"><div class="app">
+  <!-- LOGIN -->
+  <div id="loginView">
+    <div class="hero" style="justify-content:center;padding:32px 24px">
+      <div style="text-align:center;max-width:420px;width:100%">
+        <div class="brand" style="justify-content:center;margin-bottom:20px">
+          <div class="logo"><svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="20" height="20" rx="5" fill="white" fill-opacity="0.2"/><path d="M9 14l3.5 3.5L19 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h1 class="title">TaskFlow Pro</h1>
+        </div>
+        <p class="muted" style="margin:0 0 24px;font-size:15px;line-height:1.6">Gestão de tarefas inteligente com calendário, categorias e lista de compras.</p>
+        <div class="card"><div class="grid">
+          <input id="email" type="email" placeholder="Email" />
+          <input id="password" type="password" placeholder="Palavra-passe" />
+          <button id="loginBtn">Entrar no TaskFlow</button>
+          <div class="muted">Admin: fligadebora@hotmail.com</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == "fligadebora@hotmail.com";
-    }
+  <!-- APP -->
+  <div id="appView" class="hidden">
+    <div class="hero">
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="20" height="20" rx="5" fill="white" fill-opacity="0.2"/><path d="M9 14l3.5 3.5L19 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="pill-name" id="taskflowTitle">TaskFlow</div>
+          <h1 class="title" id="operatorName">Operador</h1>
+        </div>
+      </div>
+      <div class="herobtn">
+        <button class="sec icon" id="printBtn">Imprimir</button>
+        <button class="icon" id="quickNewBtn">+ Nova tarefa</button>
+        <button class="sec icon" id="logoutBtn">Sair</button>
+      </div>
+    </div>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="card">
+          <div class="nav">
+            <button id="navPanel" class="active">Painel</button>
+            <button id="navTasks">Tarefas</button>
+            <button id="navCalendar">Calendário</button>
+            <button id="navShopping">Compras</button>
+            <button id="navHistory">Concluídas</button>
+          </div>
+        </div>
+        <div class="card hidden" id="adminNav">
+          <div class="nav">
+            <button id="navOperator">Novo operador</button>
+            <button id="navInit" class="sec">Inicializar estrutura</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="grid">
+            <select id="statusFilter"><option value="all">Todas</option><option value="open">Abertas</option><option value="done">Concluídas</option></select>
+            <select id="categoryFilter"><option value="all">Todas categorias</option><option value="Trabalho">Trabalho</option><option value="Pessoal">Pessoal</option><option value="Compras">Compras</option><option value="Saúde">Saúde</option></select>
+            <select id="sortFilter"><option value="desc">Mais recentes</option><option value="asc">Mais antigas</option></select>
+          </div>
+        </div>
+      </aside>
+      <main class="main">
+        <!-- STATS -->
+        <div class="stats">
+          <div class="stat"><div class="stat-icon" style="background:#e8f5ef">📋</div><span class="slabel">Abertas</span><strong id="sOpen">0</strong></div>
+          <div class="stat"><div class="stat-icon" style="background:#ffe6e6">🔥</div><span class="slabel">Urgentes</span><strong id="sUrgent">0</strong></div>
+          <div class="stat"><div class="stat-icon" style="background:#e8f5ef">✅</div><span class="slabel">Concluídas</span><strong id="sDone">0</strong></div>
+          <div class="stat"><div class="stat-icon" style="background:#e8f2ff">🛒</div><span class="slabel">Compras</span><strong id="sShop">0</strong></div>
+        </div>
+        <!-- PANEL -->
+        <div id="panelView">
+          <div class="section-top"><h3>Painel</h3><span class="muted" id="panelCount">0 tarefas</span></div>
+          <div class="grid" id="panelList"></div>
+        </div>
+        <!-- TASKS -->
+        <div id="tasksView" class="hidden">
+          <div class="section-top"><h3>Tarefas</h3><span class="muted" id="tasksCount">0 tarefas</span></div>
+          <div class="grid" id="tasksList"></div>
+        </div>
+        <!-- CALENDAR -->
+        <div id="calendarView" class="hidden">
+          <div class="section-top"><h3 id="calMonth">Calendário</h3></div>
+          <div class="cal-head"><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div><div>Dom</div></div>
+          <div class="cal-grid" id="calGrid" style="margin-top:6px"></div>
+        </div>
+        <!-- SHOPPING -->
+        <div id="shoppingView" class="hidden">
+          <div class="section-top"><h3>Listas de Compras</h3></div>
+          <div class="grid" id="shoppingContent"></div>
+        </div>
+        <!-- HISTORY -->
+        <div id="historyView" class="hidden">
+          <div class="section-top"><h3>Concluídas</h3><span class="muted" id="histCount">0</span></div>
+          <div class="grid" id="historyList"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div></div>
 
-    match /operators/{operatorId} {
-      allow read: if isAdmin() || request.auth.uid == operatorId;
-      allow create: if isAdmin();
-      allow update: if isAdmin() || request.auth.uid == operatorId;
-      allow delete: if isAdmin();
-    }
+<!-- MODAL TAREFA -->
+<div class="modal-bg hidden" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Nova tarefa</h2>
+      <button class="sec icon" id="closeModal">✕</button>
+    </div>
+    <div class="grid">
+      <input id="mTitle" placeholder="Título da tarefa" />
+      <textarea id="mDesc" rows="3" placeholder="Descrição (opcional)"></textarea>
+      <div class="two">
+        <select id="mCategory">
+          <option value="Trabalho">💼 Trabalho</option>
+          <option value="Pessoal">👤 Pessoal</option>
+          <option value="Compras">🛒 Compras</option>
+          <option value="Saúde">💊 Saúde</option>
+        </select>
+        <select id="mPriority">
+          <option value="low">🔵 Baixa</option>
+          <option value="med" selected>🟡 Média</option>
+          <option value="high">🔴 Alta</option>
+          <option value="urgent">🟣 Urgente</option>
+        </select>
+      </div>
+      <input id="mDate" type="date" />
+      <!-- SHOPPING BLOCK -->
+      <div class="card hidden" id="shopBlock" style="background:#f8fcfa;padding:14px">
+        <strong style="font-size:14px">Lista de compras</strong>
+        <div class="two" style="margin-top:10px">
+          <input id="shopInput" placeholder="Adicionar item" />
+          <button type="button" id="addShopBtn" class="sec">+ Item</button>
+        </div>
+        <div class="grid" id="shopDraftList" style="margin-top:10px"></div>
+      </div>
+      <button id="saveTaskBtn">Guardar tarefa</button>
+    </div>
+  </div>
+</div>
 
-    match /tasks/{taskId} {
-      allow create: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid;
+<!-- MODAL OPERADOR -->
+<div class="modal-bg hidden" id="operatorModal">
+  <div class="modal">
+    <div class="modal-header"><h2>Novo operador</h2><button class="sec icon" id="closeOpModal">✕</button></div>
+    <div class="grid">
+      <input id="opName" placeholder="Nome" />
+      <input id="opEmail" type="email" placeholder="Email" />
+      <input id="opPassword" type="password" placeholder="Palavra-passe inicial" />
+      <button id="createOpBtn">Criar operador</button>
+    </div>
+  </div>
+</div>
 
-      allow read: if isSignedIn()
-        && resource.data.uid == request.auth.uid;
-
-      allow update: if isSignedIn()
-        && resource.data.uid == request.auth.uid
-        && request.resource.data.uid == resource.data.uid;
-
-      allow delete: if isSignedIn()
-        && resource.data.uid == request.auth.uid;
-    }
-  }
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script>
+const FB={apiKey:'AIzaSyBQB1bMTQBZFp65xTFaeB28x23rtTdkLyk',authDomain:'taskflow-equipa.firebaseapp.com',projectId:'taskflow-equipa',storageBucket:'taskflow-equipa.firebasestorage.app',messagingSenderId:'814294944185',appId:'1:814294944185:web:e1f2b7d45311bf08c24e68'};
+firebase.initializeApp(FB);
+const auth=firebase.auth(),db=firebase.firestore();
+const ADMIN='fligadebora@hotmail.com', ADMINPW='fpsts2012';
+const $=id=>document.getElementById(id);
+let user=null,isAdmin=false,tasks=[],shopDraft=[],editId=null,unsub=null;
+const SECTIONS={panel:$('panelView'),tasks:$('tasksView'),calendar:$('calendarView'),shopping:$('shoppingView'),history:$('historyView')};
+const NAV={panel:$('navPanel'),tasks:$('navTasks'),calendar:$('navCalendar'),shopping:$('navShopping'),history:$('navHistory')};
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function pClass(p){return p==='urgent'?'p-urgent':p==='high'?'p-high':p==='med'?'p-med':'p-low'}
+function pLabel(p){return p==='urgent'?'Urgente':p==='high'?'Alta':p==='med'?'Média':'Baixa'}
+function catIcon(c){return c==='Compras'?'🛒':c==='Saúde'?'💊':c==='Pessoal'?'👤':'💼'}
+function toDate(s){return s?new Date(s+' 00:00:00'):null}
+function setSection(name){Object.values(SECTIONS).forEach(v=>v.classList.add('hidden'));SECTIONS[name].classList.remove('hidden');Object.values(NAV).forEach(b=>b.classList.remove('active'));NAV[name].classList.add('active')}
+function filteredTasks(){
+  let it=[...tasks];
+  const sf=$('statusFilter').value,cf=$('categoryFilter').value,so=$('sortFilter').value;
+  if(sf==='open') it=it.filter(t=>!t.done);
+  if(sf==='done') it=it.filter(t=>t.done);
+  if(cf!=='all') it=it.filter(t=>t.category===cf);
+  it.sort((a,b)=>so==='asc'?(a.createdAt?.seconds||0)-(b.createdAt?.seconds||0):(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  return it;
 }
+function stats(){
+  $('sOpen').textContent=tasks.filter(t=>!t.done).length;
+  $('sUrgent').textContent=tasks.filter(t=>t.priority==='urgent'&&!t.done).length;
+  $('sDone').textContent=tasks.filter(t=>t.done).length;
+  $('sShop').textContent=tasks.filter(t=>t.category==='Compras').length;
+}
+function taskCard(t,compact){
+  return `<div class="task${t.done?' done-task':''}">
+    <div style="flex:1;min-width:0">
+      <h4>${esc(t.title)}</h4>
+      ${t.desc&&!compact?`<div class="muted" style="margin-bottom:6px">${esc(t.desc)}</div>`:''}
+      <div class="tinfo">
+        <span class="badge cat-badge">${catIcon(t.category)} ${esc(t.category)}</span>
+        <span class="badge ${pClass(t.priority)}">${pLabel(t.priority)}</span>
+        <span class="badge ${t.done?'done-badge':'status-badge'}">${t.done?'✅ Concluída':'⏳ Em aberto'}</span>
+        ${t.taskDate?`<span class="badge status-badge">📅 ${esc(t.taskDate)}</span>`:''}
+      </div>
+    </div>
+    <div class="actions">
+      <button class="sec icon" data-edit="${t.id}">✏️</button>
+      <button class="sec icon" data-toggle="${t.id}">${t.done?'↩️':'✅'}</button>
+      <button class="danger icon" data-del="${t.id}">🗑️</button>
+    </div>
+  </div>`;
+}
+function bindCards(){
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleDone(b.dataset.toggle));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delTask(b.dataset.del));
+  document.querySelectorAll('[data-shop-chk]').forEach(cb=>cb.onchange=()=>toggleShopItem(cb.dataset.task,parseInt(cb.dataset.idx),cb.checked));
+}
+function render(){
+  stats();
+  const ft=filteredTasks();
+  const open=ft.filter(t=>!t.done), done=ft.filter(t=>t.done);
+  $('panelCount').textContent=ft.length+' tarefas';
+  $('panelList').innerHTML=open.slice(0,6).map(t=>taskCard(t,false)).join('')||'<div class="muted">Sem tarefas em aberto.</div>';
+  $('tasksCount').textContent=ft.length+' tarefas';
+  $('tasksList').innerHTML=ft.map(t=>taskCard(t,false)).join('')||'<div class="muted">Sem tarefas.</div>';
+  $('histCount').textContent=done.length;
+  $('historyList').innerHTML=done.map(t=>taskCard(t,false)).join('')||'<div class="muted">Sem tarefas concluídas.</div>';
+  renderCalendar(ft);
+  renderShopping();
+  bindCards();
+}
+function renderCalendar(ft){
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  $('calMonth').textContent=now.toLocaleDateString('pt-PT',{month:'long',year:'numeric'});
+  const first=new Date(y,m,1), start=(first.getDay()+6)%7, days=new Date(y,m+1,0).getDate();
+  const todayStr=now.toISOString().slice(0,10);
+  let cells='';
+  for(let i=0;i<start;i++) cells+=`<div class="cal-day" style="background:transparent;border-style:dashed;min-height:50px"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dt=ft.filter(t=>String(t.taskDate||'').slice(0,10)===ds&&!t.done);
+    cells+=`<div class="cal-day${ds===todayStr?' today-day':''}"><div class="dn">${d}</div>${dt.slice(0,3).map(t=>`<span class="mini-task mini-${t.priority||'med'}">${esc(t.title)}</span>`).join('')}${dt.length>3?`<span class="muted" style="font-size:10px">+${dt.length-3}</span>`:''}</div>`;
+  }
+  $('calGrid').innerHTML=cells;
+}
+function renderShopping(){
+  const st=tasks.filter(t=>t.category==='Compras');
+  $('shoppingContent').innerHTML=st.length?st.map(t=>`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong>${esc(t.title)}</strong><span class="badge ${pClass(t.priority)}">${pLabel(t.priority)}</span></div><div class="grid">${(t.shoppingItems||[]).length?(t.shoppingItems||[]).map((it,i)=>`<div class="shop-item"><input type="checkbox" data-shop-chk="${t.id}" data-idx="${i}" ${it.checked?'checked':''}><span class="stext${it.checked?' crossed':''}">${esc(it.text)}</span></div>`).join(''):'<div class="muted">Sem itens.</div>'}</div></div>`).join(''):'<div class="muted card">Sem listas de compras criadas.</div>';
+  bindCards();
+}
+function renderShopDraft(){
+  $('shopDraftList').innerHTML=shopDraft.length?shopDraft.map((it,i)=>`<div class="shop-item"><span class="stext${it.checked?' crossed':''}">${esc(it.text)}</span><button class="danger icon" data-rm="${i}">✕</button></div>`).join(''):'<div class="muted">Sem itens adicionados.</div>';
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{shopDraft.splice(Number(b.dataset.rm),1);renderShopDraft();});
+}
+async function toggleDone(id){
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  await db.collection('tasks').doc(id).update({done:!t.done,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+}
+async function delTask(id){
+  if(!confirm('Apagar tarefa?')) return;
+  await db.collection('tasks').doc(id).delete();
+}
+async function toggleShopItem(taskId,idx,checked){
+  const t=tasks.find(t=>t.id===taskId); if(!t) return;
+  const items=[...(t.shoppingItems||[])]; items[idx].checked=checked;
+  await db.collection('tasks').doc(taskId).update({shoppingItems:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+}
+function openNewTask(){editId=null;shopDraft=[];$('modalTitle').textContent='Nova tarefa';$('mTitle').value='';$('mDesc').value='';$('mCategory').value='Trabalho';$('mPriority').value='med';$('mDate').value='';$('shopBlock').classList.add('hidden');renderShopDraft();$('taskModal').classList.remove('hidden');}
+async function openEdit(id){
+  const snap=await db.collection('tasks').doc(id).get(); if(!snap.exists) return;
+  const t=snap.data(); editId=id; shopDraft=[...(t.shoppingItems||[])];
+  $('modalTitle').textContent='Editar tarefa';$('mTitle').value=t.title||'';$('mDesc').value=t.desc||'';$('mCategory').value=t.category||'Trabalho';$('mPriority').value=t.priority||'med';$('mDate').value=(t.taskDate||'').slice(0,10);$('shopBlock').classList.toggle('hidden',t.category!=='Compras');renderShopDraft();$('taskModal').classList.remove('hidden');
+}
+$('mCategory').onchange=()=>$('shopBlock').classList.toggle('hidden',$('mCategory').value!=='Compras');
+$('addShopBtn').onclick=()=>{const v=$('shopInput').value.trim();if(!v)return;shopDraft.push({text:v,checked:false});$('shopInput').value='';renderShopDraft();};
+$('saveTaskBtn').onclick=async()=>{
+  const title=$('mTitle').value.trim(); if(!title) return alert('Título obrigatório.');
+  const payload={title,desc:$('mDesc').value.trim(),category:$('mCategory').value,priority:$('mPriority').value,taskDate:$('mDate').value||null,shoppingItems:$('mCategory').value==='Compras'?shopDraft:[],updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(editId){ await db.collection('tasks').doc(editId).update(payload); editId=null; }
+  else { payload.uid=user.uid; payload.email=user.email; payload.name=user.displayName||user.email; payload.done=false; payload.createdAt=firebase.firestore.FieldValue.serverTimestamp(); await db.collection('tasks').add(payload); }
+  $('taskModal').classList.add('hidden');
+};
+$('closeModal').onclick=()=>$('taskModal').classList.add('hidden');
+$('closeOpModal').onclick=()=>$('operatorModal').classList.add('hidden');
+$('createOpBtn').onclick=async()=>{
+  const name=$('opName').value.trim(),email=$('opEmail').value.trim(),pw=$('opPassword').value.trim();
+  if(!name||!email||!pw) return alert('Preencha tudo.');
+  const cred=await auth.createUserWithEmailAndPassword(email,pw); await cred.user.updateProfile({displayName:name});
+  await db.collection('operators').doc(cred.user.uid).set({name,email,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),createdBy:ADMIN});
+  $('operatorModal').classList.add('hidden'); alert('Operador criado: '+name);
+};
+$('loginBtn').onclick=async()=>{
+  const em=$('email').value.trim(),pw=$('password').value.trim();
+  try{
+    if(em.toLowerCase()===ADMIN&&pw===ADMINPW){
+      try{ await auth.signInWithEmailAndPassword(em,pw); }
+      catch{ const c=await auth.createUserWithEmailAndPassword(em,pw); await c.user.updateProfile({displayName:'Admin'}); }
+      return;
+    }
+    await auth.signInWithEmailAndPassword(em,pw);
+  }catch(e){ alert(e.message); }
+};
+$('logoutBtn').onclick=()=>auth.signOut();
+$('printBtn').onclick=()=>window.print();
+$('quickNewBtn').onclick=openNewTask;
+$('navPanel').onclick=()=>setSection('panel');
+$('navTasks').onclick=()=>setSection('tasks');
+$('navCalendar').onclick=()=>setSection('calendar');
+$('navShopping').onclick=()=>setSection('shopping');
+$('navHistory').onclick=()=>setSection('history');
+$('navOperator').onclick=()=>$('operatorModal').classList.remove('hidden');
+$('navInit').onclick=async()=>{
+  try{
+    const b=db.batch();
+    b.set(db.collection('operators').doc('_init'),{init:true,systemBase:true,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    b.set(db.collection('tasks').doc('_init'),{init:true,systemBase:true,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    await b.commit();
+    await db.collection('operators').doc('_init').delete();
+    await db.collection('tasks').doc('_init').delete();
+    $('navInit').textContent='Estrutura pronta ✅'; $('navInit').disabled=true;
+  }catch(e){ alert(e.message); }
+};
+$('statusFilter').onchange=$('categoryFilter').onchange=$('sortFilter').onchange=render;
+auth.onAuthStateChanged(u=>{
+  if(u){
+    user=u; isAdmin=u.email.toLowerCase()===ADMIN;
+    $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+    $('operatorName').textContent=u.displayName||'Operador';
+    $('taskflowTitle').textContent='TaskFlow '+(u.displayName||u.email.split('@')[0]);
+    $('adminNav').classList.toggle('hidden',!isAdmin);
+    if(unsub) unsub();
+    unsub=db.collection('tasks').where('uid','==',u.uid).onSnapshot(snap=>{
+      tasks=snap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>!t.systemBase);
+      render();
+    });
+    setSection('panel');
+  } else {
+    if(unsub) unsub();
+    $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
