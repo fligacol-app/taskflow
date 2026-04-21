@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d2f29" />
+  <title>TaskFlow Equipa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <style>
+    :root{--bg:#071412;--card:#0d201b;--card2:#113028;--line:rgba(255,255,255,.08);--txt:#edf9f5;--muted:#a6c2bb;--accent:#59d9c0;--accent2:#2ca58e;--danger:#ff6b6b;--shadow:0 22px 50px rgba(0,0,0,.35)}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,sans-serif;background:radial-gradient(circle at top,#163c34 0%,#071412 45%,#050c0b 100%);color:var(--txt)}
+    .wrap{min-height:100vh;display:flex;justify-content:center;padding:14px}.screen{width:100%;max-width:560px}.glass{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(14px);border-radius:28px;overflow:hidden}
+    .hero{padding:20px;background:linear-gradient(135deg,rgba(89,217,192,.18),rgba(44,165,142,.06));border-bottom:1px solid var(--line)}
+    .brand{display:flex;gap:12px;align-items:center}.logo{width:54px;height:54px;border-radius:17px;background:linear-gradient(135deg,#59d9c0,#1f7f6c);display:grid;place-items:center;color:#06211b;font-size:22px;font-weight:900}.title{margin:0;font-size:24px;line-height:1.05}.sub{margin-top:6px;color:var(--muted);font-size:13px}
+    .content{padding:16px;display:grid;gap:14px}.card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:22px;padding:16px}
+    .grid{display:grid;gap:10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px} input,button,select,textarea{width:100%;border:none;border-radius:16px;padding:14px 15px;font:inherit;color:var(--txt);background:#0b1916;outline:none} input::placeholder,textarea::placeholder{color:#77928a}
+    button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#052019;font-weight:800;cursor:pointer} button.secondary{background:#17332d;color:var(--txt);border:1px solid var(--line)} button.danger{background:linear-gradient(135deg,#ff7b7b,#d94b4b);color:#fff}
+    .muted{color:var(--muted);font-size:13px}.pill{padding:8px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
+    .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}.menu button{min-height:82px;border-radius:20px;text-align:left;padding:14px}.task{padding:14px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.03);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.task strong{display:block;margin-bottom:4px}.task-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.badge{padding:7px 10px;border-radius:999px;background:rgba(89,217,192,.12);color:#8effeb;font-size:12px;border:1px solid rgba(89,217,192,.18)} .hidden{display:none!important}
+    @media (max-width:420px){.two,.menu{grid-template-columns:1fr}.wrap{padding:10px}.title{font-size:22px}}
+  </style>
+</head>
+<body>
+<div class="wrap"><div class="screen">
+  <div id="loginView" class="glass">
+    <div class="hero"><div class="brand"><div class="logo">TF</div><div><h1 class="title">TaskFlow Equipa</h1><div class="sub">Acesso individual por operador. Versão pronta para telemóvel.</div></div></div></div>
+    <div class="content"><div class="card"><div class="grid">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Palavra-passe" />
+      <button id="loginBtn">Entrar</button>
+      <div class="muted">Admin pré-configurado: fligadebora@hotmail.com</div>
+    </div></div></div>
+  </div>
+
+  <div id="appView" class="glass hidden">
+    <div class="hero">
+      <div class="top">
+        <div>
+          <div class="pill" id="taskflowTitle">TaskFlow</div>
+          <h1 class="title" id="operatorName" style="margin-top:8px">Operador</h1>
+          <div class="sub" id="operatorEmail"></div>
+        </div>
+        <button id="logoutBtn" class="secondary" style="width:auto">Sair</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="menu">
+          <button id="newTaskBtn">+ Nova tarefa</button>
+          <button id="newOperatorBtn" class="secondary">+ Novo operador</button>
+          <button id="myTasksBtn" class="secondary">As minhas tarefas</button>
+          <button id="allTasksBtn" class="secondary">Painel</button>
+        </div>
+      </div>
+      <div class="card hidden" id="filtersCard">
+        <div class="two">
+          <select id="statusFilter">
+            <option value="all">Todas</option>
+            <option value="open">Abertas</option>
+            <option value="done">Concluídas</option>
+          </select>
+          <select id="sortFilter">
+            <option value="desc">Mais recentes</option>
+            <option value="asc">Mais antigas</option>
+          </select>
+        </div>
+      </div>
+      <div class="card hidden" id="operatorFormCard">
+        <div class="grid">
+          <input id="newOpName" placeholder="Nome do operador" />
+          <input id="newOpEmail" type="email" placeholder="Email do operador" />
+          <input id="newOpPassword" type="password" placeholder="Palavra-passe inicial" />
+          <button id="createOperatorBtn">Criar operador</button>
+        </div>
+      </div>
+      <div class="card hidden" id="taskFormCard">
+        <div class="grid">
+          <input id="taskTitle" placeholder="Título da tarefa" />
+          <textarea id="taskDesc" rows="4" placeholder="Descrição"></textarea>
+          <div class="two"><select id="taskPriority"><option>Baixa</option><option selected>Média</option><option>Alta</option></select><button id="createTaskBtn">Guardar tarefa</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="top" style="margin-bottom:10px"><strong>Lista</strong><span class="muted" id="taskCount">0 tarefas</span></div>
+        <div class="grid" id="taskList"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, addDoc, query, where, orderBy, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+const firebaseConfig = { apiKey: "AIzaSyBQB1bMTQBZFp65xTFaeB28x23rtTdkLyk", authDomain: "taskflow-equipa.firebaseapp.com", projectId: "taskflow-equipa", storageBucket: "taskflow-equipa.firebasestorage.app", messagingSenderId: "814294944185", appId: "1:814294944185:web:e1f2b7d45311bf08c24e68" };
+const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+const adminEmail = 'fligadebora@hotmail.com';
+const adminPassword = 'fpsts2012';
+const $ = id => document.getElementById(id);
+const loginView = $('loginView'), appView = $('appView'), taskList = $('taskList'), taskCount = $('taskCount');
+const operatorFormCard = $('operatorFormCard'), taskFormCard = $('taskFormCard'), filtersCard = $('filtersCard');
+let currentUser = null, isAdmin = false, currentScope = 'mine', currentEditId = null;
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function showApp(u){ currentUser=u; isAdmin=(u.email||'').toLowerCase()===adminEmail; loginView.classList.add('hidden'); appView.classList.remove('hidden'); $('operatorName').textContent=u.displayName||'Operador'; $('operatorEmail').textContent=u.email||''; $('taskflowTitle').textContent='TaskFlow ' + (u.displayName || (u.email||'').split('@')[0] || 'Operador'); $('newOperatorBtn').style.display = isAdmin ? 'block' : 'none'; filtersCard.classList.toggle('hidden', !isAdmin); }
+function showLogin(){ appView.classList.add('hidden'); loginView.classList.remove('hidden'); }
+async function loadTasks(scope='mine'){ currentScope=scope; const status=$('statusFilter').value; const sort=$('sortFilter').value; let qref = scope==='all' && isAdmin ? query(collection(db,'tasks'), orderBy('createdAt', sort)) : query(collection(db,'tasks'), where('uid','==',currentUser.uid), orderBy('createdAt', sort)); const snap = await getDocs(qref); let items=snap.docs.map(d=>({id:d.id,...d.data()})); if(status==='open') items=items.filter(t=>!t.done); if(status==='done') items=items.filter(t=>t.done); taskCount.textContent = items.length + ' tarefas'; taskList.innerHTML = items.length ? items.map(t=>`<div class="task"><div><strong>${esc(t.title)}</strong><div class="muted">${esc(t.desc)}</div><div style="margin-top:8px"><span class="badge">${esc(t.priority||'')}</span> <span class="pill" style="margin-left:6px">${t.done ? 'Concluída' : 'Em aberto'}</span></div></div><div class="task-actions"><button class="secondary" data-edit="${t.id}">Editar</button><button class="secondary" data-toggle="${t.id}">${t.done ? 'Reabrir' : 'Concluir'}</button>${isAdmin ? `<button class="danger" data-del="${t.id}">Apagar</button>` : ''}</div></div>`).join('') : '<div class="muted">Sem tarefas.</div>'; document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleTask(b.dataset.toggle)); document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTask(b.dataset.edit)); document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>removeTask(b.dataset.del)); }
+async function toggleTask(id){ const ref=doc(db,'tasks',id); const snap=await getDoc(ref); if(!snap.exists()) return; await updateDoc(ref,{done:!snap.data().done,updatedAt:serverTimestamp()}); loadTasks(currentScope); }
+async function editTask(id){ const snap=await getDoc(doc(db,'tasks',id)); if(!snap.exists()) return; const t=snap.data(); currentEditId=id; taskFormCard.classList.remove('hidden'); $('taskTitle').value=t.title||''; $('taskDesc').value=t.desc||''; $('taskPriority').value=t.priority||'Média'; $('createTaskBtn').textContent='Atualizar tarefa'; }
+async function removeTask(id){ if(!confirm('Apagar esta tarefa?')) return; await deleteDoc(doc(db,'tasks',id)); loadTasks(currentScope); }
+$('loginBtn').onclick = async()=>{ try{ const em=$('email').value.trim(), pw=$('password').value.trim(); if(em.toLowerCase()===adminEmail && pw===adminPassword){ try { await signInWithEmailAndPassword(auth, em, pw); } catch { const cred = await createUserWithEmailAndPassword(auth, em, pw); await updateProfile(cred.user, {displayName:'Admin'}); } return; } await signInWithEmailAndPassword(auth, em, pw); }catch(e){ alert(e.message); } };
+$('logoutBtn').onclick = ()=>signOut(auth);
+$('newTaskBtn').onclick = ()=>{ taskFormCard.classList.toggle('hidden'); operatorFormCard.classList.add('hidden'); };
+$('newOperatorBtn').onclick = ()=>{ if(!isAdmin){ alert('Apenas admin.'); return; } operatorFormCard.classList.toggle('hidden'); taskFormCard.classList.add('hidden'); };
+$('myTasksBtn').onclick = ()=>loadTasks('mine');
+$('allTasksBtn').onclick = ()=>{ if(!isAdmin){ alert('Apenas admin.'); return; } loadTasks('all'); };
+$('statusFilter').onchange = ()=>loadTasks(currentScope);
+$('sortFilter').onchange = ()=>loadTasks(currentScope);
+$('createTaskBtn').onclick = async()=>{ if(!currentUser) return; const title=$('taskTitle').value.trim(), desc=$('taskDesc').value.trim(); if(!title) return alert('Escreva um título.'); if(currentEditId){ await updateDoc(doc(db,'tasks',currentEditId),{title,desc,priority:$('taskPriority').value,updatedAt:serverTimestamp()}); currentEditId=null; $('createTaskBtn').textContent='Guardar tarefa'; } else { await addDoc(collection(db,'tasks'),{title,desc,priority:$('taskPriority').value,uid:currentUser.uid,email:currentUser.email,name:currentUser.displayName||currentUser.email,done:false,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}); } $('taskTitle').value=''; $('taskDesc').value=''; loadTasks(currentScope); };
+$('createOperatorBtn').onclick = async()=>{ if(!isAdmin) return alert('Apenas admin.'); const name=$('newOpName').value.trim(), email=$('newOpEmail').value.trim(), password=$('newOpPassword').value.trim(); if(!name||!email||!password) return alert('Preencha todos os campos.'); const cred = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(cred.user, {displayName:name}); await setDoc(doc(db,'operators',cred.user.uid), {name,email,active:true,createdAt:serverTimestamp(),createdBy:adminEmail}); alert('Operador criado.'); $('newOpName').value=''; $('newOpEmail').value=''; $('newOpPassword').value=''; };
+onAuthStateChanged(auth, async user=>{ if(user){ showApp(user); await loadTasks('mine'); } else { showLogin(); } });
+</script>
+</body>
+</html>
